@@ -1,6 +1,6 @@
 #Coded by: Brian Buh
 #Started on: 12.10.2022
-#Last Updated: 
+#Last Updated: 13.10.2022
 
 library(tidyverse)
 library(haven)
@@ -19,7 +19,10 @@ art_ukhls <- readRDS(art_ukhls)
 
 #Men have only NA in all pregnancy related questions
 
-artdesc <- art_ukhls %>% 
+art_ukhls2 %>% count(ppsex)
+art_ukhls2 %>% count(ncrr5)
+
+artdesc <- art_ukhls2 %>% 
   mutate(preg = ifelse(preg < 0, NA, preg),
          pregout1 = ifelse(pregout1 < 0, NA, pregout1),
          pregend1 = ifelse(pregend1 < 0, NA, pregend1),
@@ -30,8 +33,10 @@ artdesc <- art_ukhls %>%
          pregft31 = ifelse(pregft31 < 0, NA, pregft31),
          pregft41 = ifelse(pregft41 < 0, NA, pregft41),
          pregft51 = ifelse(pregft51 < 0, NA, pregft51),
-         pregft61 = ifelse(pregft61 < 0, NA, pregft61)) %>% 
-  filter(age_dv >= 30 & age_dv <= 50, sex == 2) %>% #Filtering is done here
+         pregft61 = ifelse(pregft61 < 0, NA, pregft61),
+         ppsex = ifelse(ppsex < 0, NA, ppsex),
+         ncrr5 = ifelse(ncrr5 < 0, NA, ncrr5)) %>% 
+  filter(age_dv >= 18 & age_dv <= 50, sex == 2) %>% #Filtering is done here
   group_by(pidp) %>% 
   mutate(numobs = length(wave),
          qfhigh_dv = ifelse(qfhigh_dv < 0, NA, qfhigh_dv)) %>% 
@@ -70,7 +75,7 @@ artdesc <- art_ukhls %>%
     edu = ifelse(edu == "NA", NA, edu),
     edu = ifelse(is.na(edu), edu_cat, edu),
     edu = ifelse(edu == "other", NA, edu)) %>% 
-  mutate(partner = ifelse(marstat_dv == 1, "married", ifelse(marstat_dv == 2, "cohab", ifelse(marstat_dv < 0, NA, "single"))), #partnership control
+  mutate(partner = ifelse(marstat_dv == 1, "married", ifelse(marstat_dv == 2, "cohab", ifelse(marstat_dv < 0, NA, "single or non-cohab"))), #partnership control
          emp = ifelse(jbstat < 0, NA, ifelse(jbstat == 1 | jbstat == 2, "emp", ifelse(jbstat == 3, "unemp", ifelse(jbstat == 7, "student", "inactive")))), #employment control
          ukborn = ifelse(ukborn == -9, NA, ukborn),
          ukborn = ifelse(ukborn == 5, 0, 1)) %>%  #ukborn control
@@ -90,25 +95,28 @@ artdesc <- art_ukhls %>%
                                   ifelse(pregout1 == 3, "Not live birth", 
                                          ifelse(is.na(pregout1), NA, "Current pregnancy")))),
          pregout1 = as.character(pregout1),
-         ukborn = as.character(ukborn))
+         ukborn = as.character(ukborn),
+         parity = as.character(parity),
+         partsex = ifelse(is.na(ppsex), ncrr5, ppsex),
+         partsex = ifelse(partsex == 1, "male", ifelse(is.na(partsex), "single", "female")))
 
 saveRDS(artdesc, file = "artdesc.rds")
 
 
 artoutcome <- artdesc %>% count(pregfert1, pregout1)
 
-artdesc %>% count(edu)
+artdesc %>% count(ppsex)
+artdesc %>% count(ncrr5)
+artdesc %>% count(partsex)
 
 # -------------------------------------------------------------------------
 # Output ------------------------------------------------------------------
 # -------------------------------------------------------------------------
 
-# artdesc_preg %>% 
-  
 
 #Descriptive Statistics Table
 mycontrols <- tableby.control(test = FALSE)
-artdesc_stats <-arsenal::tableby(preg ~ pregfert1 + pregout1 + age_dv + partner + edu + ukborn + emp, 
+artdesc_stats <-arsenal::tableby(preg ~ pregfert1 + pregout1 +  age_dv + partner + edu + ukborn + emp, 
                                 data = artdesc, 
                                 control = mycontrols)
 labels(artdesc_stats) <-  c(age_dv = "Age", partner = "Partnership status", edu = "Educational attainment", ukborn = "UK Born",
@@ -118,9 +126,19 @@ write2html(artdesc_stats, "artdesc_s4_12-10-2022.html") #UPDATE DATE
 write2word(artdesc_stats, "artdesc_s4_12-10-2022.docx") #UPDATE DATE
 
 
+artdesc_fb <-  artdesc %>%
+  filter(parity == 0)
 
-
-
+#Descriptive Statistics Table
+mycontrols <- tableby.control(test = FALSE)
+artdesc_fb_stats <-arsenal::tableby(preg ~ pregfert1 + pregout1 + age_dv + partner + partsex + edu + ukborn + emp, 
+                                 data = artdesc_fb, 
+                                 control = mycontrols)
+labels(artdesc_fb_stats) <-  c(age_dv = "Age", partner = "Partnership status", partsex = "Partner's sex", edu = "Educational attainment", ukborn = "UK Born",
+                            emp = "Activity status", pregfert1 = "Used ART (first pregnancy)", pregout1 = "Pregnancy Result")
+summary(artdesc_fb_stats)
+write2html(artdesc_fb_stats, "artdesc_fb_s4_13-10-2022.html") #UPDATE DATE
+write2word(artdesc_fb_stats, "artdesc_fb_s4_13-10-2022.docx") #UPDATE DATE
 
 
 

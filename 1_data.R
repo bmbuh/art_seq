@@ -79,7 +79,6 @@ j_hhresp <- read_dta("S:/Questionnaires/UKHLS/Understanding_)Societyw1-9_Special
 k_child <- read_dta("S:/Questionnaires/UKHLS/Understanding_)Societyw1-9_SpecialLicence/ukhls_w11/k_child_protect.dta")
 k_indresp <- read_dta("S:/Questionnaires/UKHLS/Understanding_)Societyw1-9_SpecialLicence/ukhls_w11/k_indresp_protect.dta")
 k_hhresp <- read_dta("S:/Questionnaires/UKHLS/Understanding_)Societyw1-9_SpecialLicence/ukhls_w11/k_hhresp_protect.dta")
-k_indall <- read_dta("S:/Questionnaires/UKHLS/Understanding_)Societyw1-9_SpecialLicence/ukhls_w11/k_indall_protect.dta")
 
 
 #xwavedata

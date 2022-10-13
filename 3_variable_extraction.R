@@ -124,28 +124,38 @@ library(lubridate)
 xwavedat <- xwave %>% 
   select(pidp, ukborn)
 
+
+
+
 #Sorting out needed variables from indresp
 #Changes in these lists allow for much quick adding and subtracting variables
 wave2_var <- c("hhorig", "hidp", "sex", "birthm", "birthy", "istrtdatm", "istrtdaty", "age_dv", "qfhigh_dv", "hiqual_dv",
+               "gor_dv", "marstat_dv", "jbstat", "plbornc", "jbisco88_cc",
+               "preg", "pregout1", "pregend1", "pregfert1", "pregfert2",
+               "lnprnt", "ppsex")
+
+wave3_var <- c("hhorig", "hidp", "sex", "birthm", "birthy", "istrtdatm", "istrtdaty", "age_dv", "qfhigh_dv", "hiqual_dv",
               "gor_dv", "marstat_dv", "jbstat", "plbornc", "jbisco88_cc",
-              "preg", "pregout1", "pregend1", "pregfert1", "pregfert2")
+              "preg", "pregout1", "pregend1", "pregfert1", "pregfert2",
+              "lnprnt", "ppsex", "ncrr5")
 
 wave7_var <- c("hhorig", "hidp", "sex", "birthm", "birthy", "istrtdatm", "istrtdaty", "age_dv", "qfhigh_dv", "hiqual_dv",
               "gor_dv", "marstat_dv", "jbstat", "plbornc", "jbisco88_cc",
-              "preg", "pregout1", "pregend1", "pregfert1", "pregfert2", "pregft11", "pregft21", "pregft31", "pregft41", "pregft51", "pregft61")
+              "preg", "pregout1", "pregend1", "pregfert1", "pregfert2", "pregft11", "pregft21", "pregft31", "pregft41", "pregft51", "pregft61",
+              "lnprnt", "ppsex", "ncrr5")
 
 #Add the wave prefix to the variable list
 # w1_var <- paste0('a_', wave_var)
 
 w2_var <- paste0('b_', wave2_var)
 
-w3_var <- paste0('c_', wave2_var)
+w3_var <- paste0('c_', wave3_var)
 
-w4_var <- paste0('d_', wave2_var)
+w4_var <- paste0('d_', wave3_var)
 
-w5_var <- paste0('e_', wave2_var)
+w5_var <- paste0('e_', wave3_var)
 
-w6_var <- paste0('f_', wave2_var)
+w6_var <- paste0('f_', wave3_var)
 
 w7_var <- paste0('g_', wave7_var)
 
@@ -173,7 +183,8 @@ b_ind <- b_indresp %>%
          pregft31 = NA,
          pregft41 = NA,
          pregft51 = NA,
-         pregft61 = NA)
+         pregft61 = NA,
+         ncrr5 = NA)
 
 c_ind <- c_indresp %>% 
   dplyr::select("pidp", w3_var) %>% 
@@ -261,19 +272,55 @@ art_ukhls <-
 
 saveRDS(art_ukhls, file = "art_ukhls.rds")
 
-# # -------------------------------------------------------------------------
-# # Combined dataset --------------------------------------------------------
-# # -------------------------------------------------------------------------
-# 
-# 
-# indhhukhls <- left_join(ind_ukhls, hh_ukhls, by= c("hidp","wave")) %>% 
-#   arrange(pidp, wave) %>%
-#   rename("ukhlswave" = "wave") %>%
-#   mutate(wave = ukhlswave + 18) %>%
-#   relocate(wave, .after = "pidp")
-# 
-# saveRDS(indhhukhls, file = "indhhukhls.rds")
 
+# -------------------------------------------------------------------------
+# Parity ------------------------------------------------------------------
+# -------------------------------------------------------------------------
+
+# Looking at the number of children ever had:
+## For this I need Wave 1
+a_ind <- a_indresp %>%
+  dplyr::select("pidp", "a_lnprnt", "a_age_dv") %>%
+  mutate(wave = 1) %>% 
+  relocate("wave", .after = "pidp") %>%
+  rename("lnprnt" = "a_lnprnt") %>% 
+  rename("age_dv" = "a_age_dv") %>% 
+  filter(lnprnt != -1, lnprnt != -2, lnprnt != -9) %>% 
+  mutate(lnprnt = ifelse(lnprnt == -8, 0, lnprnt))
+
+a_ind %>% count(lnprnt)
+
+lnprnt <- art_ukhls %>% 
+  dplyr::select("pidp", "wave", "lnprnt", "age_dv") %>% 
+  filter(lnprnt != -1, lnprnt != -2, lnprnt != -9) %>% 
+  mutate(lnprnt = ifelse(lnprnt == -8, NA, lnprnt))
+
+lnprnt %>% count(lnprnt)
+
+totchld <-  
+  bind_rows(a_ind, lnprnt) %>% 
+  arrange(pidp, wave) %>% 
+  group_by(pidp) %>% 
+  fill(lnprnt, .direction = "down") %>% 
+  ungroup() %>% 
+  mutate(lnprnt = ifelse(is.na(lnprnt) & wave != 1, 0, lnprnt))
+  
+table <- totchld %>% count(lnprnt, age_dv) 
+
+totchld_qual <- totchld %>% 
+  distinct(pidp, lnprnt) %>% 
+  group_by(pidp) %>% 
+  mutate(obsnum = length(pidp)) %>% 
+  ungroup()
+
+totchld_qual %>% count(obsnum)
+  
+art_ukhls2 <- art_ukhls %>% 
+  select(-age_dv, -lnprnt) %>% 
+  left_join(., totchld, by = c("pidp", "wave")) %>% 
+  rename("parity" = "lnprnt")
+
+saveRDS(art_ukhls2, file = "art_ukhls2.rds")
 
 
 
